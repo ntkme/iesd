@@ -1,4 +1,4 @@
-VBoxOSX
-=======
+dmg.kext.tool
+=============
 
-Create Installation Disk for VirtualBox from InstallESD.dmg
+Create installation disk with custom kexts from InstallESD.dmg
