@@ -114,6 +114,24 @@ EOF
   sudo -p "Please enter %u's password:" cp "$RW_BaseSystem_kernelcache" "$RW_InstallESD_kernelcache"
 
   echo
+  local OSInstall_PKG="$RW_InstallESD/Packages/OSInstall.pkg"
+  local OSInstall="$Temp/OSInstall"
+  local InstallAdditionalKexts="$OSInstall/Scripts/postinstall_actions/installAdditionalKexts"
+  echo "Patching Install Scripts"
+  pkgutil --expand "$OSInstall_PKG" "$OSInstall"
+  touch "$InstallAdditionalKexts" && chmod 755 "$InstallAdditionalKexts"
+  echo "#!/bin/sh" > "$InstallAdditionalKexts"
+  echo >> "$InstallAdditionalKexts"
+  for Kext in "${Kexts[@]}"; do
+    local KextBaseName=$(basename "$Kext")
+    echo "logger -p install.info \"Installing $KextBaseName\"" >> "$InstallAdditionalKexts"
+    echo "/bin/cp -R \"/System/Library/Extensions/$KextBaseName\" \"\$3/System/Library/Extensions/$KextBaseName\"" >> "$InstallAdditionalKexts"
+    echo >> "$InstallAdditionalKexts"
+  done
+  echo "exit 0" >> "$InstallAdditionalKexts"
+  sudo -p "Please enter %u's password:" pkgutil --flatten "$OSInstall" "$OSInstall_PKG"
+
+  echo
   echo "Unmounting Temporary Base System"
   hdiutil detach -quiet "$RW_BaseSystem"
   rm -r "$RW_BaseSystem"
