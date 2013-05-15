@@ -1,4 +1,4 @@
 dmg.kext.tool
 =============
 
-Create installation disk with custom kexts from InstallESD.dmg
+Customize OS X install disk with extra kexts.
