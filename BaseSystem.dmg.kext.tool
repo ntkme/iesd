@@ -1,6 +1,18 @@
 #!/bin/bash
 
 BaseSystem_dmg_kext_tool () {
+  Help=$(cat << EOF
+usage: $0 [-i InstallESD.dmg] [-o Output.dmg] [kexts]
+       $0 [-h]
+
+OPTIONS:
+  -h  Print Help (this message) and exit
+  -i  Location of InstallESD.dmg
+  -o  Location of output
+
+EXAMPLE:
+  $0 -i InstallESD.dmg -o Output.dmg NullCPUPowerManagement.kext
+EOF)
   while getopts hi:o:n: opt; do
     case $opt in
       i)
@@ -19,23 +31,13 @@ BaseSystem_dmg_kext_tool () {
           Output=$OPTARG
         fi
         ;;
-      :)
-        return 1
-        ;;
       h)
-        cat << EOF
-usage: $0 [-i InstallESD.dmg] [-o Output.dmg] [kexts]
-       $0 [-h]
-
-OPTIONS:
-  -h  Print Help (this message) and exit
-  -i  Location of InstallESD.dmg
-  -o  Location of output
-
-EXAMPLE:
-  $0 -i InstallESD.dmg -o Output.dmg NullCPUPowerManagement.kext
-EOF
+        echo "$Help"
         return 0
+        ;;
+      ?|:)
+        echo "$Help"
+        return 1
         ;;
     esac
   done
