@@ -1,7 +1,6 @@
 #!/bin/bash
 
 BaseSystem_dmg_kext_tool () {
-  local opt
   while getopts hi:o:n: opt; do
     case $opt in
       i)
@@ -50,10 +49,10 @@ EOF
     return 1
   fi
 
-  local Kexts=( "$@" ) Kext
+  Kexts=( "$@" ) Kext
   echo "Checking Kexts"
   for Kext in "${Kexts[@]}"; do
-    local KextBaseName=$(basename "$Kext")
+    KextBaseName=$(basename "$Kext")
     if [ -d "$Kext" ] && [ "${KextBaseName##*.}" = "kext" ] && [ -f "$Kext/Contents/MacOS/${KextBaseName%.*}" ]; then
       echo "✓ $KextBaseName"
     else
@@ -64,9 +63,9 @@ EOF
   done
 
   echo
-  local InstallESD_DMG=$Input
-  local InstallESD=$(mktemp -d "/tmp/XXXXXXXX")
-  local BaseSystem_DMG=$InstallESD/BaseSystem.dmg
+  InstallESD_DMG=$Input
+  InstallESD=$(mktemp -d "/tmp/XXXXXXXX")
+  BaseSystem_DMG=$InstallESD/BaseSystem.dmg
   echo "Mounting Mac OS X Install ESD"
   hdiutil attach -nobrowse -mountpoint "$InstallESD" "$InstallESD_DMG"
   if [ ! -f "$BaseSystem_DMG" ]; then
@@ -76,20 +75,20 @@ EOF
     return 1
   fi
 
-  local Temp=$(mktemp -d "/tmp/XXXXXXXX")
+  Temp=$(mktemp -d "/tmp/XXXXXXXX")
 
   echo
-  local RW_BaseSystem_DMG=$Temp/BaseSystem.dmg
+  RW_BaseSystem_DMG=$Temp/BaseSystem.dmg
   echo "Creating Temporary Base System in UDRW format"
   hdiutil convert -format UDRW -o "$RW_BaseSystem_DMG" "$BaseSystem_DMG"
 
   echo
-  local RW_BaseSystem_Size_Sectors=$(( $(hdiutil resize -limits "$InstallESD_DMG" | tail -n 1 | cut -f 1) + $(hdiutil resize -limits "$BaseSystem_DMG" | tail -n 1 | cut -f 1) ))
+  RW_BaseSystem_Size_Sectors=$(( $(hdiutil resize -limits "$InstallESD_DMG" | tail -n 1 | cut -f 1) + $(hdiutil resize -limits "$BaseSystem_DMG" | tail -n 1 | cut -f 1) ))
   echo "Resizing Temporary Base System to $RW_BaseSystem_Size_Sectors blocks"
   hdiutil resize -sectors "$RW_BaseSystem_Size_Sectors" "$RW_BaseSystem_DMG"
 
   echo
-  local RW_BaseSystem=$(mktemp -d "/tmp/XXXXXXXX")
+  RW_BaseSystem=$(mktemp -d "/tmp/XXXXXXXX")
   echo "Mounting Temporary Base System"
   hdiutil attach -owners on -nobrowse -mountpoint "$RW_BaseSystem" "$RW_BaseSystem_DMG"
 
@@ -109,26 +108,26 @@ EOF
     echo
     echo "Copying Kexts"
     for Kext in "${Kexts[@]}"; do
-      local KextBaseName=$(basename "$Kext")
+      KextBaseName=$(basename "$Kext")
       sudo -p "Please enter %u's password:" cp -R "$Kext" "$RW_BaseSystem/System/Library/Extensions/$KextBaseName" && echo "✓ $KextBaseName"
     done
 
     echo
-    local RW_BaseSystem_kernelcache="$RW_BaseSystem/System/Library/Caches/com.apple.kext.caches/Startup/kernelcache"
+    RW_BaseSystem_kernelcache="$RW_BaseSystem/System/Library/Caches/com.apple.kext.caches/Startup/kernelcache"
     echo "Rebuilding kernelcache"
     sudo -p "Please enter %u's password:" kextcache -v 0 -prelinked-kernel "$RW_BaseSystem_kernelcache" -kernel "$RW_BaseSystem/mach_kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
 
     echo
-    local OSInstall_PKG="$RW_BaseSystem/System/Installation/Packages/OSInstall.pkg"
-    local OSInstall="$Temp/OSInstall"
-    local InstallAdditionalKexts="$OSInstall/Scripts/postinstall_actions/installAdditionalKexts"
+    OSInstall_PKG="$RW_BaseSystem/System/Installation/Packages/OSInstall.pkg"
+    OSInstall="$Temp/OSInstall"
+    InstallAdditionalKexts="$OSInstall/Scripts/postinstall_actions/installAdditionalKexts"
     echo "Patching Install Scripts"
     pkgutil --expand "$OSInstall_PKG" "$OSInstall"
     touch "$InstallAdditionalKexts" && chmod 755 "$InstallAdditionalKexts"
     echo "#!/bin/sh" > "$InstallAdditionalKexts"
     echo >> "$InstallAdditionalKexts"
     for Kext in "${Kexts[@]}"; do
-      local KextBaseName=$(basename "$Kext")
+      KextBaseName=$(basename "$Kext")
       echo "logger -p install.info \"Installing $KextBaseName\"" >> "$InstallAdditionalKexts"
       echo "/bin/cp -R \"/System/Library/Extensions/$KextBaseName\" \"\$3/System/Library/Extensions/$KextBaseName\"" >> "$InstallAdditionalKexts"
       echo >> "$InstallAdditionalKexts"
@@ -143,7 +142,7 @@ EOF
   rm -r "$RW_BaseSystem"
 
   echo
-  local InstallESD_DMG_Format=$(hdiutil imageinfo -format "$InstallESD_DMG")
+  InstallESD_DMG_Format=$(hdiutil imageinfo -format "$InstallESD_DMG")
   echo "Converting Temporary Base System to $InstallESD_DMG_Format format"
   hdiutil convert -format "$InstallESD_DMG_Format" -o "$Output" "$RW_BaseSystem_DMG"
   rm -rf "$Temp"
