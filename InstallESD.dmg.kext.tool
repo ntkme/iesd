@@ -2,7 +2,7 @@
 
 InstallESD_dmg_kext_tool () {
   Help=$(cat <<EOF
-usage: $0 [-BI] [-i InstallESD.dmg] [-o Output.dmg] [--] [kext ...]
+usage: $0 [-BIL] [-i InstallESD.dmg] [-o Output.dmg] [--] [kext ...]
        $0 [-h]
 
 OPTIONS:
@@ -11,13 +11,14 @@ OPTIONS:
   -o  Location of output
   -B  BaseSystem mode (default)
   -I  InstallESD mode
+  -L  Legacy mode for Mac OS X version 10.6 (Snow Leopard) and earlier
 
 EXAMPLE:
-  $0 -i InstallESD.dmg -o Output.dmg NullCPUPowerManagement.kext
+  $0 -i InstallESD.dmg -o Output.dmg -- NullCPUPowerManagement.kext
 
 EOF)
   Mode=B
-  while getopts hi:o:IB opt; do
+  while getopts hi:o:IBL opt; do
     case $opt in
       i)
         Input=$OPTARG
@@ -30,6 +31,9 @@ EOF)
         ;;
       B)
         Mode=B
+        ;;
+      L)
+        Mode=L
         ;;
       h)
         echo "$Help"
@@ -51,12 +55,16 @@ EOF)
     echo "InstallESD.dmg not found." >&2
     return 1
   fi
+  if [ ! "$(echo "${Input##*.}" | tr "[:upper:]" "[:lower:]")" = "dmg" ]; then
+    echo "Only dmg format is supported." >&2
+    return 1
+  fi
   if [ -e "$Output" ]; then
     echo "$Output already exists." >&2
     return 1
   fi
-  if [ "$Mode" = "I" ] && [ "$#" -eq 0 ]; then
-    echo "InstallESD mode requires at least one kext." >&2
+  if [ ! "$Mode" = "B" ] && [ "$#" -eq 0 ]; then
+    echo "This mode requires at least one kext." >&2
     return 1
   fi
 
@@ -78,41 +86,42 @@ EOF)
   InstallESD_DMG_Format=$(hdiutil imageinfo -format "$InstallESD_DMG")
   InstallESD=$Temp/InstallESD
   InstallESD_BaseSystem_DMG=$InstallESD/BaseSystem.dmg
+  [ "$Mode" = "L" ] &&
+    InstallESD_BaseSystem_DMG=$Input
   RW_BaseSystem_DMG=$Temp/RW_BaseSystem.dmg
   RW_BaseSystem=$Temp/RW_BaseSystem
   RW_BaseSystem_kernelcache=$RW_BaseSystem/System/Library/Caches/com.apple.kext.caches/Startup/kernelcache
+  RW_BaseSystem_mkext2=$RW_BaseSystem/System/Library/Caches/com.apple.kext.caches/Startup/Extensions.mkext
+  RW_BaseSystem_mkext1=$RW_BaseSystem/System/Library/Extensions.mkext
   RW_InstallESD_DMG=$Temp/RW_InstallESD.dmg
   RW_InstallESD=$Temp/RW_InstallESD
   RW_InstallESD_BaseSystem_DMG=$RW_InstallESD/BaseSystem.dmg
   RW_InstallESD_kernelcache=$RW_InstallESD/kernelcache
-  case $Mode in
-    B)
-      OSInstall_PKG=$RW_BaseSystem/System/Installation/Packages/OSInstall.pkg
-      Kernel=$RW_BaseSystem/mach_kernel
-      ;;
-    I)
-      OSInstall_PKG=$RW_InstallESD/Packages/OSInstall.pkg
-      Kernel=$RW_InstallESD/mach_kernel
-      ;;
-  esac
+  OSInstall_PKG=$RW_BaseSystem/System/Installation/Packages/OSInstall.pkg
+  Kernel=$RW_BaseSystem/mach_kernel
+  [ "$Mode" = "I" ] &&
+    OSInstall_PKG=$RW_InstallESD/Packages/OSInstall.pkg &&
+    Kernel=$RW_InstallESD/mach_kernel
   OSInstall=$Temp/OSInstall
   OSInstall_Script=$OSInstall/Scripts/postinstall_actions/installAdditionalKexts
 
-  echo
-  echo "Mounting Install ESD"
-  mkdir "$InstallESD"
-  hdiutil attach -quiet -nobrowse -noverify -mountpoint "$InstallESD" "$InstallESD_DMG"
-  if [ -f "$InstallESD_BaseSystem_DMG" ]; then
-    InstallESD_BaseSystem_DMG_Format=$(hdiutil imageinfo -format "$InstallESD_BaseSystem_DMG")
-  else
-    hdiutil detach -quiet "$InstallESD"
-    if [ "$?" -eq 0 ]; then
-      echo "BaseSystem.dmg not found in InstallESD.dmg." >&2
+  if [ ! "$Mode" = "L" ]; then
+    echo
+    echo "Mounting Install ESD"
+    mkdir "$InstallESD"
+    hdiutil attach -quiet -nobrowse -noverify -mountpoint "$InstallESD" "$InstallESD_DMG"
+    if [ -f "$InstallESD_BaseSystem_DMG" ]; then
+      InstallESD_BaseSystem_DMG_Format=$(hdiutil imageinfo -format "$InstallESD_BaseSystem_DMG")
     else
-      echo "Failed to mount InstallESD.dmg." >&2
+      hdiutil detach -quiet "$InstallESD"
+      if [ "$?" -eq 0 ]; then
+        echo "BaseSystem.dmg not found in InstallESD.dmg." >&2
+      else
+        echo "Failed to mount InstallESD.dmg." >&2
+      fi
+      rm -rf "$Temp"
+      return 1
     fi
-    rm -rf "$Temp"
-    return 1
   fi
 
   echo
@@ -142,10 +151,12 @@ EOF)
     sudo -p "Please enter %u's password:" cp -R "$InstallESD/Packages" "$RW_BaseSystem/System/Installation/Packages"
   fi
 
-  echo
-  echo "Unmounting Install ESD"
-  hdiutil detach -quiet "$InstallESD"
-  rm -r "$InstallESD"
+  if [ ! "$Mode" = "L" ]; then
+    echo
+    echo "Unmounting Install ESD"
+    hdiutil detach -quiet "$InstallESD"
+    rm -r "$InstallESD"
+  fi
 
   echo
   echo "Copying Kexts"
@@ -165,9 +176,23 @@ EOF)
     hdiutil attach -owners on -nobrowse -mountpoint "$RW_InstallESD" "$RW_InstallESD_DMG"
   fi
 
-  echo
-  echo "Rebuilding kernelcache"
-  sudo -p "Please enter %u's password:" kextcache -v 0 -prelinked-kernel "$RW_BaseSystem_kernelcache" -kernel "$Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+  if [ ! "$Mode" = "L" ]; then
+    echo
+    echo "Rebuilding kernelcache"
+    sudo -p "Please enter %u's password:" kextcache -v 0 -prelinked-kernel "$RW_BaseSystem_kernelcache" -kernel "$Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+  fi
+
+  if [ "$Mode" = "L" ]; then
+    echo
+    echo "Rebuilding mkext cache"
+    if [ -f "$RW_BaseSystem_mkext2" ]; then
+      sudo -p "Please enter %u's password:" kextcache -v 0 -a i386 -a x86_64 -mkext "$RW_BaseSystem_mkext2" -kernel "$Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+      [ -f "$RW_BaseSystem_mkext1" ] &&
+        sudo -p "Please enter %u's password:" cp "$RW_BaseSystem_mkext2" "$RW_BaseSystem_mkext1"
+    else
+      sudo -p "Please enter %u's password:" kextcache -v 0 -a ppc -a i386 -mkext "$RW_BaseSystem_mkext1" -kernel "$Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+    fi
+  fi
 
   if [ "$Mode" = "I" ]; then
     echo
@@ -196,7 +221,7 @@ EOF)
   hdiutil detach -quiet "$RW_BaseSystem"
   rm -r "$RW_BaseSystem"
 
-  if [ "$Mode" = "B" ]; then
+  if [ "$Mode" = "B" ] || [ "$Mode" = "L" ]; then
     echo
     echo "Converting Temporary Base System to $InstallESD_DMG_Format format"
     hdiutil convert -format "$InstallESD_DMG_Format" -o "$Output" "$RW_BaseSystem_DMG"
