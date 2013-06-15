@@ -58,10 +58,6 @@ EOF)
     echo "$Output_DMG already exists." >&2
     return 1
   fi
-  if [ -z "$BaseSystem" ] && [ "$#" -eq 0 ]; then
-    echo "Require at least one kext." >&2
-    return 1
-  fi
 
   Install_Kexts=( "$@" )
   if [ "${#Install_Kexts[@]}" -gt 0 ]; then
@@ -233,33 +229,30 @@ EOF)
       test -d "$RW_BaseSystem/System/Library/Extensions/$KextBaseName" && sudo -p "Please enter %u's password:" rm -rf "$RW_BaseSystem/System/Library/Extensions/$KextBaseName"
       sudo -p "Please enter %u's password:" cp -R "$Kext" "$RW_BaseSystem/System/Library/Extensions/$KextBaseName" && echo "✓ $KextBaseName"
     done
-  fi
 
-  if [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ]; then
-    echo
-    echo "Rebuilding kernelcache"
-    sudo -p "Please enter %u's password:" kextcache -v 0 -prelinked-kernel "$RW_BaseSystem$Startup_kernelcache" -kernel "$Mach_Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
-  elif [ "$(echo "$Version >= 10.5" | bc)" -eq 1 ]; then
-    echo
-    echo "Rebuilding mkext cache"
-    if [ "$(echo "$Version >= 10.6" | bc)" -eq 1 ]; then
-      sudo -p "Please enter %u's password:" kextcache -v 0 -a i386 -a x86_64 -mkext "$RW_BaseSystem$Startup_mkext2" -kernel "$Mach_Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
-      [ -f "$RW_BaseSystem$Startup_mkext1" ] &&
-        sudo -p "Please enter %u's password:" cp "$RW_BaseSystem$Startup_mkext2" "$RW_BaseSystem$Startup_mkext1"
-    else
-      sudo -p "Please enter %u's password:" kextcache -v 0 -a ppc -a i386 -mkext "$RW_BaseSystem$Startup_mkext1" -kernel "$Mach_Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+    if [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ]; then
+      echo
+      echo "Rebuilding kernelcache"
+      sudo -p "Please enter %u's password:" kextcache -v 0 -prelinked-kernel "$RW_BaseSystem$Startup_kernelcache" -kernel "$Mach_Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+    elif [ "$(echo "$Version >= 10.5" | bc)" -eq 1 ]; then
+      echo
+      echo "Rebuilding mkext cache"
+      if [ "$(echo "$Version >= 10.6" | bc)" -eq 1 ]; then
+        sudo -p "Please enter %u's password:" kextcache -v 0 -a i386 -a x86_64 -mkext "$RW_BaseSystem$Startup_mkext2" -kernel "$Mach_Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+        [ -f "$RW_BaseSystem$Startup_mkext1" ] &&
+          sudo -p "Please enter %u's password:" cp "$RW_BaseSystem$Startup_mkext2" "$RW_BaseSystem$Startup_mkext1"
+      else
+        sudo -p "Please enter %u's password:" kextcache -v 0 -a ppc -a i386 -mkext "$RW_BaseSystem$Startup_mkext1" -kernel "$Mach_Kernel" -volume-root "$RW_BaseSystem" -- "$RW_BaseSystem/System/Library/Extensions"
+      fi
     fi
-  fi
 
+    if [ "$(echo "$Version <= 10.8" | bc)" -eq 1 ] && [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ] && [ -z "$BaseSystem" ]; then
+      echo
+      echo "Updating kernelcache on Temporary Install ESD"
+      sudo -p "Please enter %u's password:" cp "$RW_BaseSystem$Startup_kernelcache" "$RW_InstallESD/kernelcache"
+      sudo -p "Please enter %u's password:" chflags hidden "$RW_InstallESD/kernelcache"
+    fi
 
-  if [ "$(echo "$Version <= 10.8" | bc)" -eq 1 ] && [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ] && [ -z "$BaseSystem" ]; then
-    echo
-    echo "Updating kernelcache on Temporary Install ESD"
-    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem$Startup_kernelcache" "$RW_InstallESD/kernelcache"
-    sudo -p "Please enter %u's password:" chflags hidden "$RW_InstallESD/kernelcache"
-  fi
-
-  if [ "${#Install_Kexts[@]}" -gt 0 ]; then
     echo
     echo "Creating OSInstall Script for Kexts"
     pkgutil --expand "$OSInstall_PKG" "$OSInstall"
