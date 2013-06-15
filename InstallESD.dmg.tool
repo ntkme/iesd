@@ -63,11 +63,11 @@ EOF)
     return 1
   fi
 
-  Kexts=( "$@" )
-  if [ "${#Kexts[@]}" -gt 0 ]; then
+  Install_Kexts=( "$@" )
+  if [ "${#Install_Kexts[@]}" -gt 0 ]; then
     echo
     echo "Checking Kexts"
-    for Kext in "${Kexts[@]}"; do
+    for Kext in "${Install_Kexts[@]}"; do
       KextBaseName=$(basename -- "$Kext")
       if [ -d "$Kext" ] && [ "${KextBaseName##*.}" = "kext" ] && [ -f "$Kext/Contents/MacOS/${KextBaseName%.*}" ]; then
         echo "✓ $KextBaseName"
@@ -149,7 +149,7 @@ EOF)
   fi
 
   if [ "$(echo "$Version >= 10.9" | bc)" -eq 1 ]; then
-    if [ "${#Kexts[@]}" -gt 0 ]; then
+    if [ "${#Install_Kexts[@]}" -gt 0 ]; then
       echo
       echo "Extracting Kernel"
       pkgutil --expand "$BaseSystemBinaries_PKG" "$BaseSystemBinaries"
@@ -199,10 +199,12 @@ EOF)
       sudo -p "Please enter %u's password:" cp "$InstallESD/mach_kernel" "$RW_BaseSystem/mach_kernel"
     fi
 
-    echo
-    echo "Copying Packages"
-    sudo -p "Please enter %u's password:" rm "$RW_BaseSystem/System/Installation/Packages"
-    sudo -p "Please enter %u's password:" cp -R "$InstallESD/Packages" "$RW_BaseSystem/System/Installation/Packages"
+    if [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ]; then
+      echo
+      echo "Copying Packages"
+      sudo -p "Please enter %u's password:" rm "$RW_BaseSystem/System/Installation/Packages"
+      sudo -p "Please enter %u's password:" cp -R "$InstallESD/Packages" "$RW_BaseSystem/System/Installation/Packages"
+    fi
   fi
 
   if [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ]; then
@@ -223,11 +225,12 @@ EOF)
     hdiutil attach -owners on -nobrowse -mountpoint "$RW_InstallESD" "$RW_InstallESD_DMG"
   fi
 
-  if [ "${#Kexts[@]}" -gt 0 ]; then
+  if [ "${#Install_Kexts[@]}" -gt 0 ]; then
     echo
     echo "Copying Kexts"
-    for Kext in "${Kexts[@]}"; do
+    for Kext in "${Install_Kexts[@]}"; do
       KextBaseName=$(basename -- "$Kext")
+      test -d "$RW_BaseSystem/System/Library/Extensions/$KextBaseName" && sudo -p "Please enter %u's password:" rm -rf "$RW_BaseSystem/System/Library/Extensions/$KextBaseName"
       sudo -p "Please enter %u's password:" cp -R "$Kext" "$RW_BaseSystem/System/Library/Extensions/$KextBaseName" && echo "✓ $KextBaseName"
     done
   fi
@@ -256,14 +259,14 @@ EOF)
     sudo -p "Please enter %u's password:" chflags hidden "$RW_InstallESD/kernelcache"
   fi
 
-  if [ "${#Kexts[@]}" -gt 0 ]; then
+  if [ "${#Install_Kexts[@]}" -gt 0 ]; then
     echo
     echo "Creating OSInstall Script for Kexts"
     pkgutil --expand "$OSInstall_PKG" "$OSInstall"
     touch "$OSInstall_Script" && chmod a+x "$OSInstall_Script"
     echo "#!/bin/sh" > "$OSInstall_Script"
     echo >> "$OSInstall_Script"
-    for Kext in "${Kexts[@]}"; do
+    for Kext in "${Install_Kexts[@]}"; do
       KextBaseName=$(basename "$Kext")
       echo "logger -p install.info \"Installing $KextBaseName\"" >> "$OSInstall_Script"
       echo "/bin/cp -R \"/System/Library/Extensions/$KextBaseName\" \"\$3/System/Library/Extensions/$KextBaseName\"" >> "$OSInstall_Script"
