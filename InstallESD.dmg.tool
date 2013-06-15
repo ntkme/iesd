@@ -1,6 +1,6 @@
 #!/bin/bash
 
-InstallESD_dmg_kext_tool () {
+InstallESD_dmg_tool () {
   Help=$(cat <<EOF
 usage: $0 [-b] [-v X.Y] [-i InstallESD.dmg] [-o Output.dmg] [--] [kext ...]
        $0 [-h]
@@ -308,4 +308,4 @@ EOF)
   echo -e "\xF0\x9F\x8D\xBA  Done"
 }
 
-InstallESD_dmg_kext_tool "$@"
+InstallESD_dmg_tool "$@"
