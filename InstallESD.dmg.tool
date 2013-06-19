@@ -7,7 +7,8 @@ usage: $0 [-b] [-v X.Y] [-i InstallESD.dmg] [-o Output.dmg] [--] [kext ...]
 
 OPTIONS:
   -h  Print Help (this message) and exit
-  -b  Use BaseSystem as container
+  -b  Create bootable InstallESD.dmg
+  -B  Use BaseSystem as container
   -i  Location of InstallESD.dmg
   -o  Location of output
   -v  Force X.Y as InstallESD version
@@ -16,9 +17,12 @@ EXAMPLE:
   $0 -i InstallESD.dmg -o Output.dmg -- NullCPUPowerManagement.kext
 
 EOF)
-  while getopts hbi:o:v: opt; do
+  while getopts hbBi:o:v: opt; do
     case $opt in
       b)
+        Bless=1
+        ;;
+      B)
         BaseSystem=1
         ;;
       i)
@@ -53,6 +57,9 @@ EOF)
   if [ ! "$(echo "${Input_DMG##*.}" | tr "[:upper:]" "[:lower:]")" = "dmg" ]; then
     echo "Only dmg format is supported." >&2
     return 1
+  fi
+  if [ ! "$(echo "${Output_DMG##*.}" | tr "[:upper:]" "[:lower:]")" = "dmg" ]; then
+    Output_DMG=${Output_DMG}.dmg
   fi
   if [ -e "$Output_DMG" ]; then
     echo "$Output_DMG already exists." >&2
@@ -142,6 +149,10 @@ EOF)
   elif [ "$(echo "$Version >= 10.5" | bc)" -eq 1 ]; then
     InstallESD_BaseSystem_DMG=$InstallESD_DMG
     InstallESD_BaseSystem_DMG_Format=$InstallESD_DMG_Format
+  fi
+
+  if [ -n "$BaseSystem" ] || [ -f "$RW_InstallESD/System/Library/CoreServices/boot.efi" ]; then
+    Bless=
   fi
 
   if [ "$(echo "$Version >= 10.9" | bc)" -eq 1 ]; then
@@ -270,14 +281,52 @@ EOF)
     rm -r "$OSInstall"
   fi
 
+  if [ -n "$Bless" ]; then
+    echo
+    echo "Blessing Temporary Install ESD"
+    sudo -p "Please enter %u's password:" mkdir -p "$RW_InstallESD/System/Library/CoreServices/com.apple.recovery.boot"
+    sudo -p "Please enter %u's password:" mkdir -p "$RW_InstallESD/Library/Preferences/SystemConfiguration"
+    sudo -p "Please enter %u's password:" mkdir -p "$RW_InstallESD/usr/standalone/i386/"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem$Startup_kernelcache" "$RW_InstallESD/kernelcache"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem/System/Library/CoreServices/Volume Name Icon" "$RW_InstallESD/System/Library/CoreServices/Volume Name Icon"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem/System/Library/CoreServices/boot.efi" "$RW_InstallESD/usr/standalone/i386/boot.efi"
+    sudo -p "Please enter %u's password:" chflags hidden "$RW_InstallESD/kernelcache" "$RW_InstallESD/System/Library/CoreServices/Volume Name Icon" "$RW_InstallESD/usr/standalone/i386/boot.efi"
+    cat >"$Temp/com.apple.Boot.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Kernel Flags</key>
+	<string>root-dmg=file:///BaseSystem.dmg</string>
+	<key>Kernel Cache</key>
+	<string>\\kernelcache</string>
+</dict>
+</plist>
+EOF
+    sudo -p "Please enter %u's password:" cp "$Temp/com.apple.Boot.plist" "$RW_InstallESD/Library/Preferences/SystemConfiguration/com.apple.Boot.plist"
+    sudo -p "Please enter %u's password:" cp -R "$RW_BaseSystem/"*.app "$RW_InstallESD"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem/System/Library/CoreServices/com.apple.recovery.boot/PlatformSupport.plist" "$RW_InstallESD/System/Library/CoreServices/com.apple.recovery.boot/PlatformSupport.plist"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem/System/Library/CoreServices/SystemVersion.plist" "$RW_InstallESD/System/Library/CoreServices/SystemVersion.plist"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem/System/Library/CoreServices/PlatformSupport.plist" "$RW_InstallESD/System/Library/CoreServices/PlatformSupport.plist"
+    sudo -p "Please enter %u's password:" cp "$RW_BaseSystem/System/Library/CoreServices/PlatformSupport.plist" "$RW_InstallESD/System/Library/CoreServices/InstallableMachines.plist"
+    sudo -p "Please enter %u's password:" /usr/libexec/PlistBuddy -c "Delete SupportedModelProperties" "$RW_InstallESD/System/Library/CoreServices/InstallableMachines.plist"
+    sudo -p "Please enter %u's password:" bless --folder "$RW_InstallESD/System/Library/CoreServices" --bootefi
+  fi
+
   echo
   echo "Unmounting Temporary Base System"
   hdiutil detach -quiet "$RW_BaseSystem"
   rm -r "$RW_BaseSystem"
 
+  if [ -n "$Bless" ]; then
+    echo
+    echo "Resizing Temporary Base System"
+    hdiutil resize -sectors "$(( $(hdiutil resize -limits "$RW_BaseSystem_DMG" | tail -n 1 | cut -f 1) + 262144 ))" "$RW_BaseSystem_DMG"
+  fi
+
   if [ "$(echo "$Version >= 10.7" | bc)" -eq 1 ] && [ -z "$BaseSystem" ]; then
     echo
-    echo "Convert Temporary Base System to $InstallESD_BaseSystem_DMG_Format format"
+    echo "Converting Temporary Base System to $InstallESD_BaseSystem_DMG_Format format"
     sudo -p "Please enter %u's password:" hdiutil convert -format "$InstallESD_BaseSystem_DMG_Format" -ov -o "$RW_InstallESD_BaseSystem_DMG" "$RW_BaseSystem_DMG"
     sudo -p "Please enter %u's password:" chflags hidden "$RW_InstallESD_BaseSystem_DMG"
     rm "$RW_BaseSystem_DMG"
@@ -286,6 +335,12 @@ EOF)
     echo "Unmounting Temporary Install ESD"
     hdiutil detach -quiet "$RW_InstallESD"
     rm -r "$RW_InstallESD"
+
+    if [ -n "$Bless" ]; then
+      echo
+      echo "Resizing Temporary Install ESD"
+      hdiutil resize -sectors "$(( $(hdiutil resize -limits "$RW_InstallESD_DMG" | tail -n 1 | cut -f 1) + 1191552 ))" "$RW_InstallESD_DMG"
+    fi
 
     echo
     echo "Converting Temporary Install ESD to $InstallESD_DMG_Format format"
