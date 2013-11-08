@@ -1,6 +1,11 @@
 #!/bin/bash
 
 InstallESD_dmg_tool () {
+  if [ "$(uname)" != "Darwin" ]; then
+    echo "This tool is supported only on OS X." >&2
+    return 1
+  fi
+
   Help=$(cat <<EOF
 usage: $0 [-b] [-v X.Y] [-i InstallESD.dmg] [-o Output.dmg] [--] [kext ...]
        $0 [-h]
