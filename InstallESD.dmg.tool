@@ -1,6 +1,9 @@
 #!/bin/bash
 
 InstallESD_dmg_tool () {
+  echo -e "\033[31mThis tool is obsoleted, please use \033[32m$(dirname $0)/bin/iesd\033[31m instead.\033[0m"
+  echo
+
   if [ "$(uname)" != "Darwin" ]; then
     echo "This tool is supported only on OS X." >&2
     return 1

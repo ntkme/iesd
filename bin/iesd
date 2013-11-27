@@ -1,0 +1,125 @@
+#!/usr/bin/env ruby
+STDOUT.sync = true
+
+$:.unshift File.join(File.dirname(__FILE__), *%w{ .. lib })
+
+require 'optparse'
+require 'iesd'
+
+begin
+  raise "This tool is only supported on OS X." unless Kernel.system('[ "$(/usr/bin/uname)" = "Darwin" ]')
+rescue Exception => e
+  opoo e.message
+  abort
+end
+
+options = {
+  :input => nil,
+  :output => nil,
+  :type => nil,
+  :extensions => {
+    :install => [],
+    :remove => [],
+    :kextcache => nil,
+    :postinstall => true
+  },
+  :mach_kernel => nil
+}
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename $0} -i <inputfile> -o <outputfile> [options]"
+
+  opts.separator ""
+  opts.separator "Specific options:"
+
+  opts.on("-i", "--input inputfile",
+          "Specify inputfile (dmg or app)") do |input|
+    options[:input] = File.absolute_path input
+  end
+
+  opts.on("-o", "--output outputfile",
+          "Specify outputfile (dmg)") do |output|
+    options[:output] = File.absolute_path output
+    options[:output] << ".dmg" if File.extname(options[:output]).downcase != ".dmg"
+  end
+
+  opts.on("-t", "--type type", [:root, :container, :app_container],
+          "Specify type (root, container)") do |type|
+    options[:type] = type
+  end
+
+  opts.on("--install-kexts x.kext,y.kext,z.kext", Array, "Specify list of kexts to install") do |list|
+    options[:extensions][:install] = list.map { |kext| File.absolute_path kext }
+  end
+
+  opts.on("--remove-kexts x.kext,y.kext,z.kext", Array, "Specify list of kexts to remove") do |list|
+    options[:extensions][:remove] = list
+  end
+
+  opts.on("--[no-]kextcache", "Rebuild kernelcache") do |c|
+    options[:extensions][:kextcache] = c
+  end
+
+  opts.on("--[no-]postinstall-kexts", "Patch OSInstall.pkg for post install") do |p|
+    options[:extensions][:postinstall] = p
+  end
+
+  opts.on("--[no-]kernel", "Use mach_kernel as fallback to kextcache") do |k|
+    options[:mach_kernel] = k
+  end
+
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    ENV['VERBOSE'] = '1'
+  end
+
+  opts.separator ""
+  opts.separator "Common options:"
+
+  opts.on_tail("-h", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+end
+
+begin
+  optparse.parse!
+  missing_options = [:input, :output].select { |param| options[param].nil? }
+  raise "missing options: #{(missing_options.map { |param| "-#{param.to_s[0]}" }).join(', ')}" unless missing_options.empty?
+rescue OptionParser::InvalidOption, OptionParser::MissingArgument
+  onoe $!.to_s
+  puts optparse
+  abort
+rescue SystemExit
+  raise
+rescue Exception => e
+  onoe e.message
+  puts optparse
+  abort
+end
+
+begin
+  raise "input file does not exist" unless File.exist? options[:input]
+  raise "output file already exists" if File.exist? options[:output]
+  options[:extensions][:remove].select { |kext|
+    if File.extname(kext) == ".kext"
+      true
+    else
+      opoo "invalid kext: #{kext}"
+      false
+    end
+  }
+  options[:extensions][:install].each { |kext|
+    raise "invalid kext: #{kext}" unless File.exist? File.join(kext, *%w{ Contents MacOS }, File.basename(kext, ".kext"))
+  }
+  if (iesd = IESD.new options[:input])
+    iesd.export options
+  else
+    raise "invalid input file"
+  end
+rescue SignalException => e
+  abort
+rescue StandardError => e
+  onoe e.message
+  abort
+end
+
