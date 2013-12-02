@@ -30,6 +30,7 @@ module IESD
           Dir.mktmpdir { |tmp|
             HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url)))) { |installesd|
               options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
+              options[:mach_kernel] = File.exist? File.join(installesd, "mach_kernel") if options[:mach_kernel].nil?
 
               yield installesd if block_given?
 
@@ -50,12 +51,14 @@ module IESD
               }
               system(Utility::CHFLAGS, basesystem_flags, basesystem_options[:output]) unless basesystem_flags == "-"
 
-              IESD::DMG::InstallESD::BaseSystem.new(File.join(basesystem_options[:output])).show { |basesystem|
-                oh1 "Updating kextcache"
-                system(Utility::DITTO, IESD::DMG::BaseSystem::Extensions.new(basesystem).kextcache.url, (kextcache = File.join(installesd, "kernelcache")))
-                system(Utility::CHFLAGS, "hidden", kextcache)
-                puts "Updated: #{kextcache}"
-              }
+              if File.exist? (kextcache = File.join(installesd, "kernelcache"))
+                IESD::DMG::InstallESD::BaseSystem.new(File.join(basesystem_options[:output])).show { |basesystem|
+                  oh1 "Updating kextcache"
+                  system(Utility::DITTO, IESD::DMG::BaseSystem::Extensions.new(basesystem).kextcache.url, kextcache)
+                  system(Utility::CHFLAGS, "hidden", kextcache)
+                  puts "Updated: #{kextcache}"
+                }
+              end
 
               post_update installesd, options
             }
@@ -76,6 +79,9 @@ module IESD
       def post_update volume_root, options
         if !options[:extensions][:up_to_date] and options[:extensions][:postinstall]
           IESD::Packages::OSInstall.new(File.join(volume_root, *PACKAGES, "OSInstall.pkg")).postinstall_extensions options[:extensions]
+        end
+        if !options[:mach_kernel] and File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
+          system(Utility::RM, mach_kernel)
         end
       end
 

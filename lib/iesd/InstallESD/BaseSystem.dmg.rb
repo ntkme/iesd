@@ -7,6 +7,7 @@ module IESD
         Dir.mktmpdir { |tmp|
           HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), add_sectors) { |volume_root|
             options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
+            options[:mach_kernel] = File.exist? File.join(volume_root, "mach_kernel") if options[:mach_kernel].nil?
 
             yield volume_root if block_given?
 
@@ -33,7 +34,7 @@ module IESD
         if !options[:extensions][:up_to_date] and options[:extensions][:postinstall]
           IESD::Packages::OSInstall.new(File.join(volume_root, *PACKAGES, "OSInstall.pkg")).postinstall_extensions options[:extensions]
         end
-        if options[:mach_kernel] === false and File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
+        if !options[:mach_kernel] and File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
           system(Utility::RM, mach_kernel)
         end
       end
