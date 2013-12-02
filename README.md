@@ -1,4 +1,4 @@
-InstallESD.dmg.tool
-===================
+iESD
+====
 
-Customize OS X install disk with extra kexts.
+Customize OS X InstallESD.
