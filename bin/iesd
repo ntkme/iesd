@@ -43,9 +43,14 @@ optparse = OptionParser.new do |opts|
     options[:output] << ".dmg" if File.extname(options[:output]).downcase != ".dmg"
   end
 
-  opts.on("-t", "--type type", [:root, :container, :app_container],
-          "Specify type (root, container)") do |type|
-    options[:type] = type
+  opts.on("-t", "--type type", [:BaseSystem, :InstallESD],
+          "Specify type (BaseSystem, InstallESD)") do |type|
+    case type
+    when :BaseSystem
+      options[:type] = :root
+    when :InstallESD
+      options[:type] = :container
+    end
   end
 
   opts.on("--install-kexts x.kext,y.kext,z.kext", Array, "Specify list of kexts to install") do |list|

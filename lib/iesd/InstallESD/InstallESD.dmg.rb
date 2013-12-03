@@ -58,6 +58,8 @@ module IESD
                   system(Utility::CHFLAGS, "hidden", kextcache)
                   puts "Updated: #{kextcache}"
                 }
+              else
+                raise "invalid output type"
               end
 
               post_update installesd, options

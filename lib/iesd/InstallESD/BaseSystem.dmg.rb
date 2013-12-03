@@ -4,21 +4,26 @@ module IESD
       PACKAGES = %w{ System Installation Packages }
 
       def export options, add_sectors = 0
-        Dir.mktmpdir { |tmp|
-          HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), add_sectors) { |volume_root|
-            options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
-            options[:mach_kernel] = File.exist? File.join(volume_root, "mach_kernel") if options[:mach_kernel].nil?
+        case options[:type]
+        when :root, nil
+          Dir.mktmpdir { |tmp|
+            HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), add_sectors) { |volume_root|
+              options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
+              options[:mach_kernel] = File.exist? File.join(volume_root, "mach_kernel") if options[:mach_kernel].nil?
 
-            yield volume_root if block_given?
+              yield volume_root if block_given?
 
-            pre_update volume_root, options
+              pre_update volume_root, options
 
-            IESD::DMG::BaseSystem::Extensions.new(volume_root).update options[:extensions]
+              IESD::DMG::BaseSystem::Extensions.new(volume_root).update options[:extensions]
 
-            post_update volume_root, options
+              post_update volume_root, options
+            }
+            system(Utility::MV, tmpfile, options[:output])
           }
-          system(Utility::MV, tmpfile, options[:output])
-        }
+        else
+          raise "invalid output type"
+        end
       end
 
       private
