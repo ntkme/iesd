@@ -39,8 +39,8 @@ optparse = OptionParser.new do |opts|
 
   opts.on("-o", "--output outputfile",
           "Specify outputfile (dmg)") do |output|
+    output << ".dmg" if File.extname(output).downcase != ".dmg"
     options[:output] = File.absolute_path output
-    options[:output] << ".dmg" if File.extname(options[:output]).downcase != ".dmg"
   end
 
   opts.on("-t", "--type type", [:BaseSystem, :InstallESD],
@@ -118,6 +118,7 @@ begin
   }
   if (iesd = IESD.new options[:input])
     iesd.export options
+    puts "\xF0\x9F\x8D\xBA  #{options[:output]}"
   else
     raise "invalid input file"
   end
