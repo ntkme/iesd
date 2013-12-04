@@ -1,4 +1,4 @@
-module InstallESD
+module IESD
   class Packages
     class OSInstallM < PKGUtil::PKG
     end
