@@ -7,7 +7,7 @@ require 'optparse'
 require 'iesd'
 
 begin
-  raise "This tool is only supported on OS X." unless Kernel.system('[ "$(/usr/bin/uname)" = "Darwin" ]')
+  raise "iESD is only supported on OS X." unless Kernel.system('[ "$(/usr/bin/uname)" = "Darwin" ]')
 rescue Exception => e
   opoo e.message
   abort
@@ -45,12 +45,7 @@ optparse = OptionParser.new do |opts|
 
   opts.on("-t", "--type type", [:BaseSystem, :InstallESD],
           "Specify type (BaseSystem, InstallESD)") do |type|
-    case type
-    when :BaseSystem
-      options[:type] = :root
-    when :InstallESD
-      options[:type] = :container
-    end
+    options[:type] = type
   end
 
   opts.on("--install-kexts x.kext,y.kext,z.kext", Array, "Specify list of kexts to install") do |list|
@@ -65,7 +60,7 @@ optparse = OptionParser.new do |opts|
     options[:extensions][:kextcache] = c
   end
 
-  opts.on("--[no-]postinstall-kexts", "Patch OSInstall.pkg for post install") do |p|
+  opts.on("--[no-]postinstall-kexts", "Patch OSInstall.pkg for postinstall kexts") do |p|
     options[:extensions][:postinstall] = p
   end
 
@@ -117,6 +112,11 @@ begin
     raise "invalid kext: #{kext}" unless File.exist? File.join(kext, *%w{ Contents MacOS }, File.basename(kext, ".kext"))
   }
   if (iesd = IESD.new options[:input])
+    iesd_type = iesd.class.name.split("::").last
+    types = [nil, :BaseSystem, :InstallESD, :InstallOSX]
+    if types.index(options[:type]) > types.index(iesd_type.to_sym)
+      raise "invalid output type #{options[:type].to_s} for input type #{iesd_type}"
+    end
     iesd.export options
     puts "\xF0\x9F\x8D\xBA  #{options[:output]}"
   else

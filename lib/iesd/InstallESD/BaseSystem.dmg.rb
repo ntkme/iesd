@@ -5,7 +5,7 @@ module IESD
 
       def export options, add_sectors = 0
         case options[:type]
-        when :root, nil
+        when :BaseSystem, nil
           Dir.mktmpdir { |tmp|
             HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), add_sectors) { |volume_root|
               options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)

@@ -5,7 +5,7 @@ module IESD
 
       def export options
         case options[:type]
-        when :root
+        when :BaseSystem
           resize_limits = `#{Utility::HDIUTIL} resize -limits "#{@url}"`.chomp.split.map { |s| s.to_i }
           show { |installesd|
             IESD::DMG::BaseSystem.new(File.join(installesd, "BaseSystem.dmg")).export(options, resize_limits[0]) { |basesystem|
@@ -26,7 +26,7 @@ module IESD
               end
             }
           }
-        when :container, nil
+        when :InstallESD, nil
           Dir.mktmpdir { |tmp|
             HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url)))) { |installesd|
               options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
@@ -58,14 +58,14 @@ module IESD
                   system(Utility::CHFLAGS, "hidden", kextcache)
                   puts "Updated: #{kextcache}"
                 }
-              else
-                raise "invalid output type"
               end
 
               post_update installesd, options
             }
             system(Utility::MV, tmpfile, options[:output])
           }
+        else
+          raise "invalid output type"
         end
       end
 
