@@ -6,9 +6,17 @@ module IESD
       def export options
         case options[:type]
         when :BaseSystem
-          resize_limits = `#{Utility::HDIUTIL} resize -limits "#{@url}"`.chomp.split.map { |s| s.to_i }
+          options = {
+            :hdiutil => {
+              :resize => {
+                :grow => 0,
+              }
+            }
+          }.merge(options)
+          options[:hdiutil][:resize][:grow] += ( `#{Utility::HDIUTIL} resize -limits "#{@url}"`.chomp.split.map { |s| s.to_i } ).first
+
           show { |installesd|
-            IESD::DMG::BaseSystem.new(File.join(installesd, "BaseSystem.dmg")).export(options, resize_limits[0]) { |basesystem|
+            IESD::DMG::BaseSystem.new(File.join(installesd, "BaseSystem.dmg")).export(options) { |basesystem|
               installesd_packages = File.join installesd, PACKAGES
               basesystem_packages = File.join basesystem, *IESD::DMG::BaseSystem::PACKAGES
               oh1 "Copying #{installesd_packages}"
@@ -28,13 +36,13 @@ module IESD
           }
         when :InstallESD, nil
           Dir.mktmpdir { |tmp|
-            HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url)))) { |installesd|
+            HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), options[:hdiutil]) { |installesd|
               options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
               options[:mach_kernel] = File.exist? File.join(installesd, "mach_kernel") if options[:mach_kernel].nil?
 
               yield installesd if block_given?
 
-              pre_update installesd, options
+              pre_update_extension installesd, options
 
               basesystem_options = options.clone
               basesystem_options[:input] = basesystem_options[:output] = File.join(installesd, "BaseSystem.dmg")
@@ -60,7 +68,7 @@ module IESD
                 }
               end
 
-              post_update installesd, options
+              post_update_extension installesd, options
             }
             system(Utility::MV, tmpfile, options[:output])
           }
@@ -71,14 +79,14 @@ module IESD
 
       private
 
-      def pre_update volume_root, options
+      def pre_update_extension volume_root, options
         if !File.exist? (mach_kernel = File.join(volume_root, "mach_kernel")) and (options[:mach_kernel] or !options[:extensions][:up_to_date])
           IESD::Packages::BaseSystemBinaries.new(File.join(volume_root, *PACKAGES, "BaseSystemBinaries.pkg")).extract_mach_kernel mach_kernel
           system(Utility::CHFLAGS, "hidden", mach_kernel)
         end
       end
 
-      def post_update volume_root, options
+      def post_update_extension volume_root, options
         if !options[:extensions][:up_to_date] and options[:extensions][:postinstall]
           IESD::Packages::OSInstall.new(File.join(volume_root, *PACKAGES, "OSInstall.pkg")).postinstall_extensions options[:extensions]
         end

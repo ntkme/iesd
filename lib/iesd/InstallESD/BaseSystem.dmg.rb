@@ -3,21 +3,21 @@ module IESD
     class BaseSystem < HDIUtil::DMG
       PACKAGES = %w{ System Installation Packages }
 
-      def export options, add_sectors = 0
+      def export options
         case options[:type]
         when :BaseSystem, nil
           Dir.mktmpdir { |tmp|
-            HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), add_sectors) { |volume_root|
+            HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), options[:hdiutil]) { |volume_root|
               options[:extensions][:up_to_date] = (options[:extensions][:remove].empty? and options[:extensions][:install].empty?)
               options[:mach_kernel] = File.exist? File.join(volume_root, "mach_kernel") if options[:mach_kernel].nil?
 
               yield volume_root if block_given?
 
-              pre_update volume_root, options
+              pre_update_extension volume_root, options
 
               IESD::DMG::BaseSystem::Extensions.new(volume_root).update options[:extensions]
 
-              post_update volume_root, options
+              post_update_extension volume_root, options
             }
             system(Utility::MV, tmpfile, options[:output])
           }
@@ -28,14 +28,14 @@ module IESD
 
       private
 
-      def pre_update volume_root, options
+      def pre_update_extension volume_root, options
         if !File.exist? (mach_kernel = File.join(volume_root, "mach_kernel")) and (options[:mach_kernel] or !options[:extensions][:up_to_date])
           IESD::Packages::BaseSystemBinaries.new(File.join(volume_root, *PACKAGES, "BaseSystemBinaries.pkg")).extract_mach_kernel mach_kernel
           system(Utility::CHFLAGS, "hidden", mach_kernel)
         end
       end
 
-      def post_update volume_root, options
+      def post_update_extension volume_root, options
         if !options[:extensions][:up_to_date] and options[:extensions][:postinstall]
           IESD::Packages::OSInstall.new(File.join(volume_root, *PACKAGES, "OSInstall.pkg")).postinstall_extensions options[:extensions]
         end

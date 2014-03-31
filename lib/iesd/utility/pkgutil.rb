@@ -41,7 +41,7 @@ module PKGUtil
   def self.shell dir
     Dir.chdir(dir) {
       ohai ENV['SHELL']
-      system(ENV, ENV['SHELL'])
+      Kernel.system ENV, ENV['SHELL']
     }
   end
 end
