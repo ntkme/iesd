@@ -23,6 +23,7 @@ module HDIUtil
         :shrink => false
       }
     }.merge(options)
+
     Dir.mktmpdir { |tmp|
       shadow = File.join(tmp, "#{File.basename input}.shadow")
       shadow_options = ["-shadow", shadow]

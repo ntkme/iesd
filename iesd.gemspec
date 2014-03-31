@@ -2,7 +2,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = ">= 1.9.2"
 
   s.name                  = "iesd"
-  s.version               = "1.0.3"
+  s.version               = "1.1.0"
   s.summary               = "Customize OS X InstallESD."
   s.description           = "Modify Extensions, Kextcache and Packages on InstallESD."
   s.authors               = "なつき"

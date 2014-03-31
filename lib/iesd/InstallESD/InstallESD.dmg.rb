@@ -69,6 +69,12 @@ module IESD
               end
 
               post_update_extension installesd, options
+
+              if options[:interactive]
+                oh1 "Starting Interactive Shell"
+                puts "Environment: InstallESD"
+                HDIUtil.shell installesd
+              end
             }
             system(Utility::MV, tmpfile, options[:output])
           }

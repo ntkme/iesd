@@ -18,6 +18,12 @@ module IESD
               IESD::DMG::BaseSystem::Extensions.new(volume_root).update options[:extensions]
 
               post_update_extension volume_root, options
+
+              if options[:interactive]
+                oh1 "Starting Interactive Shell"
+                puts "Environment: BaseSystem"
+                HDIUtil.shell volume_root
+              end
             }
             system(Utility::MV, tmpfile, options[:output])
           }

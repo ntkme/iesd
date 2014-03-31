@@ -17,6 +17,7 @@ options = {
   :input => nil,
   :output => nil,
   :type => nil,
+  :interactive => false,
   :hdiutil => {
     :resize => {
       :grow => 0,
@@ -54,8 +55,13 @@ optparse = OptionParser.new do |opts|
     options[:type] = type
   end
 
+  opts.on("-s", "--[no-]interactive-shell", "Edit in #{ENV["SHELL"]}") do |interactive|
+    options[:interactive] = interactive
+  end
+
   opts.separator ""
   opts.separator "HDIUtil options:"
+
   opts.on("--grow sectors", OptionParser::DecimalInteger,
           "Grow dmg size by number of sectors") do |sectors|
     options[:hdiutil][:resize][:grow] = sectors
@@ -67,12 +73,14 @@ optparse = OptionParser.new do |opts|
 
   opts.separator ""
   opts.separator "Boot options:"
+
   opts.on("--[no-]kernel", "Use mach_kernel as fallback to kernelcache") do |k|
     options[:mach_kernel] = k
   end
 
   opts.separator ""
   opts.separator "Extension options:"
+
   opts.on("--remove-kexts x.kext,y.kext,z.kext", Array, "Kexts to remove") do |list|
     options[:extensions][:remove] = list
   end
