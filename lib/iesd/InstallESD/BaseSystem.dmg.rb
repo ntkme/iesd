@@ -54,7 +54,7 @@ module IESD
         def update extensions
           remove extensions[:remove]
           install extensions[:install]
-          @kextcache.update if extensions[:kextcache] or (extensions[:kextcache].nil? and !extensions[:up_to_date])
+          KextCache.update_volume @volume_root if extensions[:kextcache] or (extensions[:kextcache].nil? and !extensions[:up_to_date])
         end
       end
     end

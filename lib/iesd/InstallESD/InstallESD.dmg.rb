@@ -104,11 +104,11 @@ module IESD
       class BaseSystem < IESD::DMG::BaseSystem
         private
 
-        def pre_update volume_root, options
+        def pre_update_extension volume_root, options
 
         end
 
-        def post_update volume_root, options
+        def post_update_extension volume_root, options
           if File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
             system(Utility::RM, mach_kernel)
           end
