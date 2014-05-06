@@ -1,3 +1,7 @@
+require "shellwords"
+require "tmpdir"
+require_relative "tty"
+
 module HDIUtil
   DEFAULT_MOUNT_OPTIONS = %w{ -nobrowse -quiet -noverify }
   DEFAULT_MOUNT_OPTIONS.concat(%w{ -owners on }) if Process.uid == 0
@@ -27,11 +31,11 @@ module HDIUtil
     Dir.mktmpdir { |tmp|
       shadow = File.join(tmp, "#{File.basename input}.shadow")
       shadow_options = ["-shadow", shadow]
-      format_options = ["-format", `#{Utility::HDIUTIL} imageinfo -format "#{input}"`.chomp]
+      format_options = ["-format", `/usr/bin/env hdiutil imageinfo -format #{input.shellescape}`.chomp]
       Dir.mktmpdir(nil, tmp) { |mountpoint|
-        resize_limits = `#{Utility::HDIUTIL} resize -limits -shadow "#{shadow}" "#{input}"`.chomp.split.map { |s| s.to_i }
+        resize_limits = `/usr/bin/env hdiutil resize -limits -shadow #{shadow.shellescape} #{input.shellescape}`.chomp.split.map { |s| s.to_i }
         sectors = (resize_limits[1] + options[:resize][:grow]).to_s
-        system(Utility::HDIUTIL, "resize", "-growonly", "-sectors", sectors, *shadow_options, input)
+        system("/usr/bin/env", "hdiutil", "resize", "-growonly", "-sectors", sectors, *shadow_options, input)
         attach input, mountpoint, [*DEFAULT_MOUNT_OPTIONS, *shadow_options]
         if block_given?
           yield mountpoint
@@ -39,29 +43,29 @@ module HDIUtil
           shell mountpoint
         end
         detach input, mountpoint, [*DEFAULT_UNMOUNT_OPTIONS]
-        system(Utility::HDIUTIL, "resize", "-shrinkonly", "-sectors", "min", *shadow_options, input) if options[:resize][:shrink]
+        system("/usr/bin/env", "hdiutil", "resize", "-shrinkonly", "-sectors", "min", *shadow_options, input) if options[:resize][:shrink]
       }
       oh1 "Merging #{shadow}"
-      system(Utility::HDIUTIL, "convert", *DEFAULT_CONVERT_OPTIONS, *format_options, *shadow_options, "-o", output, input)
+      system("/usr/bin/env", "hdiutil", "convert", *DEFAULT_CONVERT_OPTIONS, *format_options, *shadow_options, "-o", output, input)
       puts "Merged: #{output}"
     }
   end
 
   def self.validate input
-    Kernel.system("#{Utility::HDIUTIL} imageinfo \"#{input}\" >/dev/null 2>&1")
+    Kernel.system(%Q{/usr/bin/env hdiutil imageinfo #{input.shellescape} >/dev/null 2>&1})
   end
 
   private
 
   def self.attach dmg, mountpoint, arguments = []
     ohai "Mounting #{dmg}"
-    system(Utility::HDIUTIL, "attach", *arguments, "-mountpoint", mountpoint, dmg)
+    system("/usr/bin/env", "hdiutil", "attach", *arguments, "-mountpoint", mountpoint, dmg)
     puts "Mounted: #{mountpoint}"
   end
 
   def self.detach dmg, mountpoint, arguments = []
     ohai "Unmounting #{dmg}"
-    system(Utility::HDIUTIL, "detach", *arguments, mountpoint)
+    system("/usr/bin/env", "hdiutil", "detach", *arguments, mountpoint)
     puts "Unmounted: #{mountpoint}"
   end
 
@@ -91,10 +95,10 @@ module HDIUtil
 
     def update &block
       Dir.mktmpdir { |tmp|
-        flags = `#{Utility::LS} -lO "#{@url}"`.split[4]
+        flags = `/usr/bin/env ls -lO #{@url.shellescape}`.split[4]
         HDIUtil.write(@url, (tmpfile = File.join(tmp, File.basename(@url))), &block)
-        system(Utility::MV, tmpfile, @url)
-        system(Utility::CHFLAGS, flags, @url) unless flags == "-"
+        system("/usr/bin/env", "mv", tmpfile, @url)
+        system("/usr/bin/env", "chflags", flags, @url) unless flags == "-"
       }
     end
 

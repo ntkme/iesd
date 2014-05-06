@@ -1,7 +1,5 @@
 $:.unshift File.dirname(__FILE__)
 
-require "tmpdir"
-
 require "iesd/utility"
 require "iesd/InstallESD"
 require "iesd/InstallESD/Extensions"

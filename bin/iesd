@@ -27,7 +27,7 @@ options = {
   :mach_kernel => nil,
   :extensions => {
     :install => [],
-    :remove => [],
+    :uninstall=> [],
     :kextcache => nil,
     :postinstall => true
   }
@@ -39,23 +39,23 @@ optparse = OptionParser.new do |opts|
   opts.separator ""
   opts.separator "Specific options:"
 
-  opts.on("-i", "--input inputfile",
-          "Input file (dmg or app)") do |input|
+  opts.on("-i", "--input file",
+          "Specify the input dmg or app.") do |input|
     options[:input] = File.absolute_path input
   end
 
-  opts.on("-o", "--output outputfile",
-          "Output file (dmg)") do |output|
+  opts.on("-o", "--output file",
+          "Specify the output dmg.") do |output|
     output << ".dmg" if File.extname(output).downcase != ".dmg"
     options[:output] = File.absolute_path output
   end
 
   opts.on("-t", "--type type", [:BaseSystem, :InstallESD],
-          "Output type (BaseSystem, InstallESD)") do |type|
+          "Specify the output type.  Type could be BaseSystem or InstallESD.") do |type|
     options[:type] = type
   end
 
-  opts.on("-s", "--[no-]interactive-shell", "Edit in #{ENV["SHELL"]}") do |interactive|
+  opts.on("-s", "--[no-]interactive-shell", "Open #{ENV["SHELL"]} inside the temporary mount directory.") do |interactive|
     options[:interactive] = interactive
   end
 
@@ -63,44 +63,46 @@ optparse = OptionParser.new do |opts|
   opts.separator "HDIUtil options:"
 
   opts.on("--grow sectors", OptionParser::DecimalInteger,
-          "Grow dmg size by number of sectors") do |sectors|
+          "Specify the size of the image to grow in 512-byte sectors.") do |sectors|
     options[:hdiutil][:resize][:grow] = sectors
   end
 
-  opts.on("--[no-]shrink", "Shrink output dmg") do |s|
+  opts.on("--[no-]shrink", "Do [not] shrink the output image.") do |s|
     options[:hdiutil][:resize][:shrink] = s
   end
 
   opts.separator ""
   opts.separator "Boot options:"
 
-  opts.on("--[no-]kernel", "Use mach_kernel as fallback to kernelcache") do |k|
+  opts.on("--[no-]fallback-kernel", "Do [not] fallback to mach_kernel when kernelcache fails to boot.") do |k|
     options[:mach_kernel] = k
   end
 
   opts.separator ""
-  opts.separator "Extension options:"
+  opts.separator "Extensions options:"
 
-  opts.on("--remove-kexts x.kext,y.kext,z.kext", Array, "Kexts to remove") do |list|
-    options[:extensions][:remove] = list
+  opts.on("--install-extension kext",
+          "Add the kext to the list of the extensions to be installed.") do |kext|
+    options[:extensions][:install].push File.absolute_path kext
   end
 
-  opts.on("--install-kexts x.kext,y.kext,z.kext", Array, "Kexts to install") do |list|
-    options[:extensions][:install] = list.map { |kext| File.absolute_path kext }
+  opts.on("--uninstall-extension kext",
+          "Add the kext to the list of the extensions to be uninstalled.") do |kext|
+    options[:extensions][:uninstall].push kext
   end
 
-  opts.on("--[no-]postinstall-kexts", "Patch OSInstall.pkg to postinstall kexts") do |p|
+  opts.on("--[no-]postinstall-extensions", "Do [not] patch OSInstall.pkg to postinstall extensions.") do |p|
     options[:extensions][:postinstall] = p
   end
 
-  opts.on("--[no-]kextcache", "Rebuild kernelcache") do |c|
+  opts.on("--[no-]update-kernelcache", "Do [not] rebuild the startup kernelcache.") do |c|
     options[:extensions][:kextcache] = c
   end
 
   opts.separator ""
   opts.separator "Common options:"
 
-  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+  opts.on("--[no-]verbose", "Run verbosely") do |v|
     ENV['VERBOSE'] = '1'
   end
 
@@ -129,7 +131,7 @@ end
 begin
   raise "input file does not exist" unless File.exist? options[:input]
   raise "output file already exists" if File.exist? options[:output]
-  options[:extensions][:remove].select { |kext|
+  options[:extensions][:uninstall].select { |kext|
     if File.extname(kext) == ".kext"
       true
     else

@@ -1,3 +1,6 @@
+require "tmpdir"
+require_relative "tty"
+
 module PKGUtil
   def self.read input
     Dir.mktmpdir { |tmp|
@@ -28,13 +31,13 @@ module PKGUtil
 
   def self.expand pkg, dir
     ohai "Expanding #{pkg}"
-    system(Utility::PKGUTIL, "--expand", pkg, dir)
+    system("/usr/bin/env", "pkgutil", "--expand", pkg, dir)
     puts "Expanded: #{dir}"
   end
 
   def self.flatten dir, pkg
     ohai "Flattening #{dir}"
-    system(Utility::PKGUTIL, "--flatten", dir, pkg)
+    system("/usr/bin/env", "pkgutil", "--flatten", dir, pkg)
     puts "Flattened: #{pkg}"
   end
 

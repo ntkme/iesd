@@ -1,3 +1,5 @@
+require "shellwords"
+
 module Tty extend self
   def blue; bold 34; end
   def white; bold 39; end
@@ -32,14 +34,6 @@ module Tty extend self
   end
 end
 
-class Array
-  def shell_s
-    cp = dup
-    first = cp.shift
-    cp.map{ |arg| arg.gsub " ", "\\ " }.unshift(first) * " "
-  end
-end
-
 def ohai title, *sput
   title = Tty.truncate(title) if $stdout.tty? && ENV['VERBOSE'].nil?
   puts "#{Tty.blue}==>#{Tty.white} #{title}#{Tty.reset}"
@@ -67,7 +61,7 @@ def odie error
 end
 
 def system *args
-  abort "Failed during: #{args.shell_s}" unless Kernel.system *args
+  abort "Failed during: #{args.shelljoin}" unless Kernel.system *args
 end
 
 def sudo *args
