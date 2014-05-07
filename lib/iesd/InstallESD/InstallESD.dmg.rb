@@ -61,8 +61,8 @@ module IESD
 
               if File.exist? (kextcache = File.join(installesd, "kernelcache"))
                 IESD::DMG::InstallESD::BaseSystem.new(File.join(basesystem_options[:output])).show { |basesystem|
-                  oh1 "Updating kextcache"
-                  system(Utility::DITTO, IESD::DMG::BaseSystem::Extensions.new(basesystem).kextcache.url, kextcache)
+                  oh1 "Updating Kextcache"
+                  system(Utility::DITTO, File.join(basesystem, *KextCache::KERNELCACHE), kextcache)
                   system(Utility::CHFLAGS, "hidden", kextcache)
                   puts "Updated: #{kextcache}"
                 }
