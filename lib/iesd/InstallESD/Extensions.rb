@@ -1,16 +1,33 @@
 module IESD
+
+  # /System/Library/Extensions
   class Extensions
-    EXTENSIONS = %w{ System Library Extensions }
-    EXTRA_EXTENSIONS = %w{ Library Extensions }
 
-    attr_reader :volume_root, :url
+    # The relative path to the Extensions.
+    EXTENSIONS = File.join %w[ System Library Extensions ]
 
+    # The relative path to the Extra Extensions.
+    #
+    # Available on Mavericks and later.
+    EXTRA_EXTENSIONS = File.join %w[ Library Extensions ]
+
+    # The String path to the volume root.
+    attr_reader :volume_root
+    # The String path to the Extensions.
+    attr_reader :url
+
+    # Initialize an Extensions.
+    #
+    # volume_root - The String path to the volume root.
     def initialize volume_root
       @volume_root = volume_root
-      @extensions = File.join @volume_root, *EXTENSIONS
-      @extra_extensions = File.join @volume_root, *EXTRA_EXTENSIONS
+      @extensions = File.join @volume_root, EXTENSIONS
+      @extra_extensions = File.join @volume_root, EXTRA_EXTENSIONS
     end
 
+    # Uninstall extensions.
+    #
+    # kexts - The Array of extensions to be uninstalled.
     def uninstall kexts
       if !kexts.empty?
         oh1 "Uninstalling Extensions"
@@ -28,6 +45,9 @@ module IESD
       end
     end
 
+    # Install extensions.
+    #
+    # kexts - The Array of extensions to be installed.
     def install kexts
       if !kexts.empty?
         oh1 "Installing Extensions"

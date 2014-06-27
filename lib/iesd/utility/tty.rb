@@ -1,5 +1,6 @@
 require "shellwords"
 
+# :enddoc:
 module Tty extend self
   def blue; bold 34; end
   def white; bold 39; end
@@ -61,7 +62,7 @@ def odie error
 end
 
 def system *args
-  abort "Failed during: #{args.shelljoin}" unless Kernel.system *args
+  abort "Failed during: #{args.shelljoin}" unless Kernel.system(*args)
 end
 
 def sudo *args
@@ -70,6 +71,6 @@ def sudo *args
   else
     "/usr/bin/sudo #{args.first}"
   end
-  ohai *args
-  system *args
+  ohai(*args)
+  system(*args)
 end

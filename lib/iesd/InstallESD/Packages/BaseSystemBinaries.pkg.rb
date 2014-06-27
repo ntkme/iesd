@@ -2,7 +2,13 @@ require "shellwords"
 
 module IESD
   class Packages
+
+    # BaseSystemBinaries.pkg
     class BaseSystemBinaries < PKGUtil::PKG
+
+      # Extract the mach_kernel.
+      #
+      # output - The String path to the output file.
       def extract_mach_kernel output
         show { |pkg|
           payload = "#{pkg}/Payload"

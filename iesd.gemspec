@@ -2,7 +2,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = ">= 1.9.2"
 
   s.name                  = "iesd"
-  s.version               = "1.2.0"
+  s.version               = "1.2.1"
   s.summary               = "Customize OS X InstallESD."
   s.description           = "Modify Extensions, Kextcache and Packages on InstallESD."
   s.authors               = "なつき"
@@ -11,10 +11,10 @@ Gem::Specification.new do |s|
   s.license               = "BSD-2-Clause"
 
   s.executables           = ["iesd"]
-  s.files                 = %w{
+  s.files                 = %w[
     README.md
     LICENSE.md
     bin/iesd
     iesd.gemspec
-  } + Dir["lib/**/*.rb"]
+  ] + Dir["lib/**/*.rb"]
 end

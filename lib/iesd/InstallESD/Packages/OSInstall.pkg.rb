@@ -1,6 +1,12 @@
 module IESD
   class Packages
+
+    # OSInstall.pkg
     class OSInstall < PKGUtil::PKG
+
+      # Create the postinstall script for extensions.
+      #
+      # extensions - The Extensions to update.
       def postinstall_extensions extensions
         update { |pkg|
           oh1 "Creating Extensions Postinstall Script"

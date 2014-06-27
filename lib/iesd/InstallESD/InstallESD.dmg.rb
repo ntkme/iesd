@@ -2,9 +2,19 @@ require "shellwords"
 
 module IESD
   class DMG
-    class InstallESD < HDIUtil::DMG
-      PACKAGES = %w{ Packages }
 
+    # {InstallESD.dmg}[rdoc-ref:IESD::DMG::InstallESD]
+    #
+    # The installer DMG for OS X Lion and later.
+    # It contains a {BaseSystem.dmg}[rdoc-ref:IESD::DMG::BaseSystem], which is used to install the OS X Recovery.
+    class InstallESD < HDIUtil::DMG
+
+      # The relative path to the Packages.
+      PACKAGES = File.join %w[ Packages ]
+
+      # Export to a new DMG.
+      #
+      # options - The Dictionary of the export options
       def export options
         case options[:type]
         when :BaseSystem
@@ -20,7 +30,7 @@ module IESD
           show { |installesd|
             IESD::DMG::BaseSystem.new(File.join(installesd, "BaseSystem.dmg")).export(options) { |basesystem|
               installesd_packages = File.join installesd, PACKAGES
-              basesystem_packages = File.join basesystem, *IESD::DMG::BaseSystem::PACKAGES
+              basesystem_packages = File.join basesystem, IESD::DMG::BaseSystem::PACKAGES
               oh1 "Copying #{installesd_packages}"
               system("/usr/bin/env", "rm", basesystem_packages)
               system("/usr/bin/env", "ditto", installesd_packages, basesystem_packages)
@@ -87,29 +97,45 @@ module IESD
 
       private
 
+      # Perform certain tasks before updating extensions.
+      #
+      # volume_root - The String path to the volume root
+      # options     - The Dictionary of the export options
       def pre_update_extension volume_root, options
         if !File.exist? (mach_kernel = File.join(volume_root, "mach_kernel")) and (options[:mach_kernel] or !options[:extensions][:up_to_date])
-          IESD::Packages::BaseSystemBinaries.new(File.join(volume_root, *PACKAGES, "BaseSystemBinaries.pkg")).extract_mach_kernel mach_kernel
+          IESD::Packages::BaseSystemBinaries.new(File.join(volume_root, PACKAGES, "BaseSystemBinaries.pkg")).extract_mach_kernel mach_kernel
           system("/usr/bin/env", "chflags", "hidden", mach_kernel)
         end
       end
 
+      # Perform certain tasks after updating extensions.
+      #
+      # volume_root - The String path to the volume root
+      # options     - The Dictionary of the export options
       def post_update_extension volume_root, options
         if !options[:extensions][:up_to_date] and options[:extensions][:postinstall]
-          IESD::Packages::OSInstall.new(File.join(volume_root, *PACKAGES, "OSInstall.pkg")).postinstall_extensions options[:extensions]
+          IESD::Packages::OSInstall.new(File.join(volume_root, PACKAGES, "OSInstall.pkg")).postinstall_extensions options[:extensions]
         end
         if !options[:mach_kernel] and File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
           system("/usr/bin/env", "rm", mach_kernel)
         end
       end
 
-      class BaseSystem < IESD::DMG::BaseSystem
+      class BaseSystem < IESD::DMG::BaseSystem # :nodoc:
         private
 
+        # Perform certain tasks before updating extensions.
+        #
+        # volume_root - The String path to the volume root
+        # options     - The Dictionary of the export options
         def pre_update_extension volume_root, options
 
         end
 
+        # Perform certain tasks after updating extensions.
+        #
+        # volume_root - The String path to the volume root
+        # options     - The Dictionary of the export options
         def post_update_extension volume_root, options
           if File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
             system("/usr/bin/env", "rm", mach_kernel)
