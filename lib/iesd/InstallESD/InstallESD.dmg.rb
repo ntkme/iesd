@@ -29,6 +29,18 @@ module IESD
 
           show { |installesd|
             IESD::DMG::BaseSystem.new(File.join(installesd, "BaseSystem.dmg")).export(options) { |basesystem|
+              installesd_basesystem_dmg = File.join installesd, "BaseSystem.dmg"
+              basesystem_basesystem_dmg = File.join basesystem, "BaseSystem.dmg"
+              oh1 "Copying #{installesd_basesystem_dmg}"
+              system("/usr/bin/env", "ditto", installesd_basesystem_dmg, basesystem_basesystem_dmg)
+              puts "Copied: #{basesystem_basesystem_dmg}"
+
+              installesd_basesystem_chunklist = File.join installesd, "BaseSystem.chunklist"
+              basesystem_basesystem_chunklist = File.join basesystem, "BaseSystem.chunklist"
+              oh1 "Copying #{installesd_basesystem_chunklist}"
+              system("/usr/bin/env", "ditto", installesd_basesystem_chunklist, basesystem_basesystem_chunklist)
+              puts "Copied: #{basesystem_basesystem_chunklist}"
+
               installesd_packages = File.join installesd, PACKAGES
               basesystem_packages = File.join basesystem, IESD::DMG::BaseSystem::PACKAGES
               oh1 "Copying #{installesd_packages}"

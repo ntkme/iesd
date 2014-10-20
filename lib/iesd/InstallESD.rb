@@ -33,10 +33,10 @@ module IESD
           case
           when (File.exist? File.join(mountpoint, *%w[ .IABootFiles ]))
             i = IESD::DMG::InstallOSX.new url
-          when (File.exist? File.join(mountpoint, *%w[ BaseSystem.dmg ]))
-            i = IESD::DMG::InstallESD.new url
           when (File.exist? File.join(mountpoint, *%w[ System Installation ]))
             i = IESD::DMG::BaseSystem.new url
+          when (File.exist? File.join(mountpoint, *%w[ BaseSystem.dmg ]))
+            i = IESD::DMG::InstallESD.new url
           else
             raise "unknown type"
           end
