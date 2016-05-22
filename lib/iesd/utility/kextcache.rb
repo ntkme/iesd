@@ -8,6 +8,16 @@ module KextCache
   # The default options for kextcache.
   DEFAULT_OPTIONS = %w[ -v 0 -no-authentication ]
 
+  # The relative path to kernel.
+  #
+  # Available on OS X Yosemite and later.
+  KERNEL = File.join %w[ System Library Kernels kernel ]
+
+  # The relative path to mach_kernel.
+  #
+  # Available on OS X Mavericks and earlier.
+  MACH_KERNEL = File.join %w[ mach_kernel ]
+
   # The relative path to Extensions.
   EXTENSIONS = File.join %w[ System Library Extensions ]
 
@@ -36,7 +46,7 @@ module KextCache
   # volume_root - The String path to the volume root.
   def self.update_volume volume_root
     oh1 "Updating Kextcache"
-    if File.exist? (mach_kernel = File.join(volume_root, "mach_kernel"))
+    if File.exist? (mach_kernel = File.join(volume_root, KERNEL)) or File.exist? (mach_kernel = File.join(volume_root, MACH_KERNEL))
       extensions_path = [File.join(volume_root, EXTENSIONS)]
       extensions_path.push(File.join(volume_root, EXTRA_EXTENSIONS)) if File.exist? File.join(volume_root, EXTRA_EXTENSIONS)
       case
