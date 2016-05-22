@@ -41,31 +41,47 @@ module KextCache
   # Available on OS X Leopard and eailer.
   MKEXT_PPC = File.join %w[ System Library Extensions.mkext ]
 
+  # Locate the kernel on a volume.
+  #
+  # volume_root - The String path to the volume root.
+  def self.kernel volume_root
+    kernel = File.join volume_root, KERNEL
+    mach_kernel = File.join volume_root, MACH_KERNEL
+
+    if File.exist? kernel
+      kernel
+    elsif File.exist? mach_kernel
+      mach_kernel
+    else
+      nil
+    end
+  end
+
   # Update the kernelcache on a volume.
   #
   # volume_root - The String path to the volume root.
   def self.update_volume volume_root
     oh1 "Updating Kextcache"
-    if File.exist? (mach_kernel = File.join(volume_root, KERNEL)) or File.exist? (mach_kernel = File.join(volume_root, MACH_KERNEL))
+    unless (kernel = KextCache.kernel volume_root).nil?
       extensions_path = [File.join(volume_root, EXTENSIONS)]
       extensions_path.push(File.join(volume_root, EXTRA_EXTENSIONS)) if File.exist? File.join(volume_root, EXTRA_EXTENSIONS)
       case
       when (File.exist? (url = File.join(volume_root, KERNELCACHE)))
-        system("/usr/bin/env", "kextcache", *DEFAULT_OPTIONS, "-prelinked-kernel", url, "-kernel", mach_kernel, "-volume-root", volume_root, "--", *extensions_path)
+        system("/usr/bin/env", "kextcache", *DEFAULT_OPTIONS, "-prelinked-kernel", url, "-kernel", kernel, "-volume-root", volume_root, "--", *extensions_path)
       when (File.exist? (url = File.join(volume_root, MKEXT)))
-        system("/usr/bin/env", "kextcache", *DEFAULT_OPTIONS, *%w[ -a i386 -a x86_64 ], "-mkext", url, "-kernel", mach_kernel, "-volume-root", volume_root, "--", *extensions_path)
+        system("/usr/bin/env", "kextcache", *DEFAULT_OPTIONS, *%w[ -a i386 -a x86_64 ], "-mkext", url, "-kernel", kernel, "-volume-root", volume_root, "--", *extensions_path)
         if File.exist? (mkext_ppc = File.join(volume_root, MKEXT_PPC))
           system("/usr/bin/env", "ditto", url, mkext_ppc)
         end
       when (File.exist? (url = File.join(volume_root, MKEXT_PPC)))
-        system("/usr/bin/env", "kextcache", *DEFAULT_OPTIONS, *%w[ -a ppc -a i386 ], "-mkext", url, "-kernel", mach_kernel, "-volume-root", volume_root, "--", *extensions_path)
+        system("/usr/bin/env", "kextcache", *DEFAULT_OPTIONS, *%w[ -a ppc -a i386 ], "-mkext", url, "-kernel", kernel, "-volume-root", volume_root, "--", *extensions_path)
       else
         puts "kextcache aborted: unknown kernel cache type"
         return
       end
       puts "Updated: #{url}"
     else
-      opoo "kextcache aborted: mach_kernel not found"
+      opoo "kextcache aborted: kernel not found"
     end
   end
 end
