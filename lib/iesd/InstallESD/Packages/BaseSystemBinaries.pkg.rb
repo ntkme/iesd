@@ -21,6 +21,8 @@ module IESD
           when "application/x-gzip"
             system("/usr/bin/env", "mv", payload, "#{cpio}.gz")
             system("/usr/bin/env", "gunzip", "#{cpio}.gz")
+          else
+            raise "unknown payload format"
           end
           puts "Unarchived: #{cpio}"
           ohai "Extracting /mach_kernel"
